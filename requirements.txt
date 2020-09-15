@@ -1,0 +1,5 @@
+python-nmap==0.6.1
+requests==2.22.0
+urllib3==1.25.8
+argparse==1.1
+shodan==1.21.3

@@ -12,7 +12,7 @@ pip3 install -r requirements.txt
 
 # Presentation :
 
-![](https://jenesaispas/img/owasp-presentation.png)
+![](https://github.com/niranc/owasp/blob/master/img/owasp-pres.png)
 
 
 

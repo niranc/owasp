@@ -3188,8 +3188,8 @@ class OTG:
                 os.system("apt-get update && \
                 apt-get install jq nmap phantomjs golang npm")
                 print_green("Done!")
-                print_action("Ajout de la clef SHODAN_API dans sudomy.api : wgbAfdKjEfYXEizjt9Ow1oEixrMwApg2")
-                os.system("sed -i -r 's/SHODAN_API.*/SHODAN_API=\"wgbAfdKjEfYXEizjt9Ow1oEixrMwApg2\"/g' /opt/Sudomy/sudomy.api")
+                print_action("Ajout de la clef SHODAN_API dans sudomy.api : <TOKEN_SHODAN>")
+                #os.system("sed -i -r 's/SHODAN_API.*/SHODAN_API=\"<TOKEN_SHODAN>\"/g' /opt/Sudomy/sudomy.api")
                 print_green("Done!")
             except:
                 os.system("rm -rf /opt/Sudomy/")

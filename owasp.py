@@ -109,12 +109,16 @@ def conclusion():
 
 ##Multiprocessing 
 def checkSSL(name):
-    cmd = "/opt/testssl.sh/testssl.sh "+name
-    print_action("Lancement de la commande \""+cmd+"\" associée au nom "+name+" ...")
-    print_green("Ecriture dans le fichier : "+os.getcwd()+"testssl-"+name)
-    with open(os.getcwd()+"/testssl-"+name, 'wb') as logfile:
-        p = subprocess.Popen(shlex.split(cmd), stdout=logfile, stderr=logfile, bufsize=1) 
-    p.wait()
+    cmd = ["/opt/testssl.sh/testssl.sh",name]
+    print_action("Lancement de la commande \""+cmd[0]+"\" associée au nom "+cmd[1]+" ...")
+    print_green("Ecriture dans le fichier : "+os.getcwd()+"testssl-"+cmd[1])
+
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as p, \
+        open(os.getcwd()+"/testssl-"+cmd[1], 'ab') as file:
+        for line in p.stdout: # b'\n'-separated lines
+            sys.stdout.buffer.write(line) # pass bytes as is
+            file.write(line)
+
     print_green("Fin de l'écriture du fichier : "+os.getcwd()+"/testssl-"+name)
 
     '''with Popen(shlex.split(cmd), stdout=PIPE, stderr=STDOUT, bufsize=1) as p:
@@ -125,19 +129,27 @@ def checkSSL(name):
                     sys.stdout.buffer.flush()'''
 
 def checkDirectories(lien,nb_threads):
-    cmd ="python3 /opt/dirsearch/dirsearch.py -r -b -u "+lien+" -e ~,doc,docx,pdf,php,xls,xlsx,rtf,odt,psw,ppt,pptx,sml,log,sql,mdb,html,htm,sh,sxw,bat,conf,config,ini,yaml,yml,txt,bak,backup,inc,js,ps,src,dev,old,inc,orig,tmp,tar,zip -x 400 -t "+nb_threads+" -w /usr/share/wordlists/FinalDics/finaldic.txt"
-    print_action("Lancement de la commande \""+cmd+"\" associée au lien "+lien+" ...")
+    cmd =["/opt/dirsearch/dirsearch.py","-u",lien," -r -b -e ~,doc,docx,pdf,php,xls,xlsx,rtf,odt,psw,ppt,pptx,sml,log,sql,mdb,html,htm,sh,sxw,bat,conf,config,ini,yaml,yml,txt,bak,backup,inc,js,ps,src,dev,old,inc,orig,tmp,tar,zip -x 400 -t ",nb_threads," -w /usr/share/wordlists/FinalDics/finaldic.txt"]
+    print_action("Lancement de la commande \""+cmd[0]+cmd[1]+cmd[2]+cmd[3]+cmd[4]+"\" associée au lien "+lien+" ...")
     
     name_file = "dirsearch-"+lien 
     n = name_file.replace('//','-')
     n2 = n.replace(':','-')
+    
     print_green("Ecriture dans le fichier : "+os.getcwd()+"/"+n2)
+    with subprocess.Popen(cmd[1], stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as p, \
+        open(os.getcwd()+"/"+n2, 'ab') as file:
+        for line in p.stdout: # b'\n'-separated lines
+            sys.stdout.buffer.write(line) # pass bytes as is
+            file.write(line)
+            """
+
     with open(os.getcwd()+"/"+n2, 'wb') as logfile:
         try:
             p = subprocess.Popen(shlex.split(cmd), stdout=logfile, stderr=logfile, bufsize=1)
-            p.wait()
         except:
             pass
+            """
     print_green("Fin de l'écriture du fichier "+os.getcwd()+"/"+n2)
 
 
@@ -768,12 +780,11 @@ class OTG:
         self.OTG_INFO_001()
         self.OTG_INFO_002()
         self.OTG_INFO_003()
-        #self.OTG_INFO_004()
+        self.OTG_INFO_004()
         self.OTG_INFO_005()
-        self.OTG_INFO_006()
-        #self.OTG_INFO_007()
-        #self.OTG_INFO_008()
-        #self.OTG_INFO_009()
+        #self.OTG_INFO_007() => TODO : problème de threads
+        self.OTG_INFO_008()
+        self.OTG_INFO_009()
         self.OTG_INFO_010()
 
         self.OTG_CONFIG_001()
@@ -790,16 +801,16 @@ class OTG:
 
         self.OTG_SESS_002()
 
+        self.OTG_INPVAL_001()
         self.OTG_INPVAL_003()
 
-        #self.OTG_INPVAL_009()
+        self.OTG_INPVAL_009()
 
         self.OTG_ERR_001()
-
-        ##self.OTG_INPVAL_001() # xsstrike    
-        '''
+        self.OTG_ERR_002()
+        
         self.OTG_CRYPST_001()
-        '''
+        
         for domaine in self.__AllDomains:
             try:
                 domaine.DisplayAllResults()
@@ -863,9 +874,11 @@ class OTG:
          print("Scan NMAP (tous les ports) + Trouver les autres applications web + Verifier qu'elles ne sont pas vulnerables.")
 
          test()
-         for domaine in self.__AllDomains:
-                domaine.allServicesNmap()
-                #print_red(domaine.getName()+"+ Ctrl C ")
+         var= input("[?] Scan nmap 65536 ports ? [y/n]")
+         if var == "y" or var == "Y":
+             for domaine in self.__AllDomains:
+                    domaine.allServicesNmap()
+                    #print_red(domaine.getName()+"+ Ctrl C ")
          
 
          conclusion()
@@ -981,12 +994,14 @@ class OTG:
                 else:
                     cur_lien = all_lien_http.pop(0)
                     t = threading.Thread(target=checkDirectories, args=(cur_lien,max_number_threads))
+                    max_number_concurrent_dirsearch = max_number_concurrent_dirsearch - 1
                     threads.append(t)
                     t.start()
                     
                 for t in threads:
                     t.join()
                 threads = []
+         max_number_concurrent_dirsearch = 3
 
          while len(all_lien_https) != 0:
             for i in range(int(max_number_concurrent_dirsearch)):
@@ -2517,8 +2532,8 @@ class OTG:
      print("[+] Recherche fichier web.xml")
 
      for domaine in self.__AllDomains:
-          domaine.reqGetHTTP(self.__DESCRIPTEUR)
-          domaine.reqGetHTTPS(self.__DESCRIPTEUR)
+          domaine.reqGetHTTP(self.__DESCRIPTEUR,"OTG_ERR_002")
+          domaine.reqGetHTTPS(self.__DESCRIPTEUR,"OTG_ERR_002")
 
      outil()
      print("Burp Intruder")
@@ -2553,7 +2568,6 @@ class OTG:
         pass        
      else:
         os.system("cd /opt/ && git clone --depth 1 https://github.com/drwetter/testssl.sh.git")
-     wait
      threads=[]
      for domaine in self.__AllDomains:
         t = threading.Thread(target=checkSSL, args=(domaine.getName(),))
@@ -3547,14 +3561,46 @@ class Domaine:
 
     def allServicesNmap(self):
         nm = nmap.PortScanner()
-        nm.scan(hosts=self.__name,arguments='-sV -p-')
+        nm.scan(hosts=self.__name,arguments='-p-')
         nmap_ports = ""
+
+         #host = self.__name
+
+        for host in nm.all_hosts():
+             print_action("Hôte : "+self.__name)               
+             for port in nm[host]['tcp'].keys():
+                try:
+                 if nm[host]['tcp'][port]['state'] == "filtered":
+                     print_magenta("Port "+str(port)+" filtered")
+                 elif nm[host]['tcp'][port]['state'] == "open":
+                     if "ssl" in nm[host]['tcp'][port]['name'] or "https" in nm[host]['tcp'][port]['name']:
+                         self.addHTTPS("https://"+self.__name+":"+str(port))
+                         self.addService(Service(str(nm[host]['tcp'][port]['state']),str(port),str(nm[host]['tcp'][port]['name']),nm[host]['tcp'][self.__name]['product']))
+                         print_green("port : %s,\tproduit : %s" % (port, nm[host]['tcp'][port]['product']))
+                         self.addPort(port)
+                         if port is not 80 and port is not 443:
+                            nmap_ports = nmap_ports + str(port) + " ; "
+                     elif "http" in nm[host]['tcp'][port]['name']:
+                         self.addHTTP("http://"+self.__name+":"+str(port))
+                         self.addService(Service(str(nm[host]['tcp'][port]['state']),str(port),str(nm[host]['tcp'][port]['name']),nm[host]['tcp'][self.__name]['product']))
+                         print_green("port : %s,\tproduit : %s" % (port, nm[host]['tcp'][port]['product']))
+                         self.addPort(port)
+                         if port is not 80 and port is not 443:
+                            nmap_ports = nmap_ports + str(port) + " ; "
+                     else:
+                         print_red("[!!!] Nom inconnu : "+str(port)+" "+str(nm[host]['tcp'][port]['name'])+" "+str(nm[host]['tcp'][port]['product']))
+                 else:
+                     print_red("Port "+str(port)+" close")
+                except:
+                     print_red("Port "+str(port)+" close")
+
+        '''
 
         for host in nm.all_hosts():
             print_action("Hôte : "+self.__name)
             for port in nm[host]['tcp'].keys():
                     if nm[host]['tcp'][port]['state'] is "open":
-                        if nm[host]['tcp'][port]['name'] == "ssl":
+                        if nm[host]['tcp'][port]['name'] == "ssl" or nm[host]['tcp'][port]['name'] == "https":
                          self.addHTTPS("https://"+self.__name+":"+str(port))
                          self.addService(Service(str(nm[host]['tcp'][port]['state']),str(port),str(nm[host]['tcp'][port]['name']),nm[host]['tcp'][self.__name]['product']))
                          print_green("port : %s,\tproduit : %s" % (port, nm[host]['tcp'][port]['product']))
@@ -3573,6 +3619,7 @@ class Domaine:
 
                     else:
                          pass
+        '''
 
         if len(nmap_ports) is not 0:
             self._Affichage_OTG.setOTG_INFO(4,"KO","Applications également accessible : "+nmap_ports)
@@ -4171,14 +4218,14 @@ class Domaine:
             for http_req in self.__HTTP:
                print_action("Requête : "+http_req+" - Headers : ")
                for head in headers:
-                    print(head, headers[head])
-               r = requests.get(http_req, headers=headers)
-               if r.status_code == 200:
-                    print_green("["+str(r.status_code)+"] - Requête : "+http_req+" - Taille : "+len(r.content))
-                    #print(r.text)
-               else:
-                    print_red("["+str(r.status_code)+"] - Requête : "+http_req+" - Taille : "+len(r.content))
-                    #print(r.text)
+                        print(head, headers[head])
+                        r = requests.get(http_req, headers=headers)
+                        if r.status_code == 200:
+                                print_green("["+str(r.status_code)+"] - Requête : "+http_req+" - Taille : "+str(len(r.content)))
+                                #print(r.text)
+                        else:
+                                print_red("["+str(r.status_code)+"] - Requête : "+http_req+" - Taille : "+str(len(r.content)))
+                                #print(r.text)
 
 
 
@@ -4186,14 +4233,14 @@ class Domaine:
             for https_req in self.__HTTPS:
                print_action("Requête : "+https_req+" - Headers : ")
                for head in headers:
-                    print(head, headers[head])
-               r = requests.get(https_req, verify=False, headers=headers)
-               if r.status_code == 200:
-                    print_green("["+str(r.status_code)+"] - Requête : "+https_req+" - Taille : "+str(len(r.content)))
-                    print(r.text)
-               else:
-                    print_red("["+str(r.status_code)+"] - Requête : "+https_req+" - Taille : "+str(len(r.content)))
-                    print(r.text)
+                   print(head, headers[head])
+                   r = requests.get(https_req, verify=False, headers=headers)
+                   if r.status_code == 200:
+                        print_green("["+str(r.status_code)+"] - Requête : "+https_req+" - Taille : "+str(len(r.content)))
+                        print(r.text)
+                   else:
+                        print_red("["+str(r.status_code)+"] - Requête : "+https_req+" - Taille : "+str(len(r.content)))
+                        print(r.text)
 
     """  Fonction de OTG_ERR_001  """
 
@@ -4401,7 +4448,7 @@ class Domaine:
                             for lib in JAVASCRIPT:
                                 try:
                                     if str(lib).lower() in str(script).lower():
-                                        versions = re.findall(r'\d[0-9a-zA-Z._:-]+',url.text)    
+                                        versions = re.findall(r'\d[0-9a-zA-Z._:-]+',url.text)  #  re.findall(r'ersion="[0-9].[0-9].[0-9]"', 'abc1,44;5-6.5523xyz ver5.6.7version=\"4.5.5\"')
                                         print_green(lib+" - Version : "+versions[0])
                                 except:
                                     pass                        
